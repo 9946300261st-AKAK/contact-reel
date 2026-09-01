@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "ContactReel"
+description = "A production-ready photo montage editor that creates deterministic, high-quality vertical, square, and widescreen MP4 reels with a server-side rendering API."
+version = "1.0.0"
+id = "artifacts/contactreel"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22050
+
+[services.development]
+run = "pnpm --filter @workspace/contactreel run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/contactreel", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/contactreel/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22050"
+BASE_PATH = "/"

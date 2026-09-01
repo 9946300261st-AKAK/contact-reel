@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: sources
+    description: Photo source operations
+  - name: renders
+    description: Asynchronous render jobs
 paths:
   /healthz:
     get:
@@ -24,7 +28,203 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /v1/health:
+    get:
+      operationId: getRenderHealth
+      tags: [health]
+      summary: Render service health
+      responses:
+        "200":
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RenderHealth"
+  /v1/sources:
+    get:
+      operationId: listSources
+      tags: [sources]
+      summary: List available photo sources
+      responses:
+        "200":
+          description: Photo sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Source"
+    post:
+      operationId: createSource
+      tags: [sources]
+      summary: Create a local photo source for the browser editor
+      description: Creates a temporary source from original image data. Automation clients should normally use an existing sourceId instead.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SourceInput"
+      responses:
+        "201":
+          description: Source created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "400":
+          description: Invalid source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/sources/{sourceId}:
+    get:
+      operationId: getSource
+      tags: [sources]
+      summary: Get a photo source
+      parameters:
+        - $ref: "#/components/parameters/SourceId"
+      responses:
+        "200":
+          description: Photo source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Source"
+        "404":
+          description: Source not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/render:
+    post:
+      operationId: createRender
+      tags: [renders]
+      summary: Queue a deterministic MP4 render
+      description: Queues a server-side FFmpeg render. Send sourceId and settings; image binaries are not required for automation clients.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenderInput"
+      responses:
+        "202":
+          description: Render queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RenderAccepted"
+        "200":
+          description: Existing idempotent render
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RenderAccepted"
+        "400":
+          description: Invalid render settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: API authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/render/{jobId}:
+    get:
+      operationId: getRender
+      tags: [renders]
+      summary: Get render status
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Render job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RenderJob"
+        "404":
+          description: Render not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/render/{jobId}/cancel:
+    post:
+      operationId: cancelRender
+      tags: [renders]
+      summary: Cancel an active render
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Render cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RenderJob"
+        "404":
+          description: Render not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/render/{jobId}/download:
+    get:
+      operationId: getRenderDownload
+      tags: [renders]
+      summary: Download a completed MP4 render
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: MP4 file
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Render output not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
+  parameters:
+    SourceId:
+      name: sourceId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: "^[A-Za-z0-9_-]+$"
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: "^cr_[A-Za-z0-9_-]+$"
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 128
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +233,206 @@ components:
           type: string
       required:
         - status
+    RenderHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        ffmpeg:
+          type: boolean
+        supabase:
+          type: boolean
+        worker:
+          type: boolean
+        queueDepth:
+          type: integer
+      required: [status, ffmpeg, supabase, worker, queueDepth]
+    ImageInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        dataUrl:
+          type: string
+          minLength: 32
+      required: [name, contentType, dataUrl]
+    SourceInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        images:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/ImageInput"
+      required: [name, images]
+    SourceImage:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        contentType:
+          type: string
+        previewUrl:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+      required: [id, name, contentType, previewUrl, width, height]
+    Source:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        imageCount:
+          type: integer
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceImage"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, imageCount, images, createdAt]
+    VideoFormat:
+      type: string
+      enum: ["9:16", "1:1", "16:9"]
+    Quality:
+      type: string
+      enum: [draft, high, maximum]
+    SequenceMode:
+      type: string
+      enum: [random, sequential]
+    RenderInput:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        duration:
+          type: number
+          minimum: 0.5
+          maximum: 1200
+        photoDuration:
+          type: number
+          minimum: 0.03
+          maximum: 10
+        format:
+          $ref: "#/components/schemas/VideoFormat"
+        fps:
+          type: integer
+          enum: [30, 60]
+        quality:
+          $ref: "#/components/schemas/Quality"
+        sequence:
+          $ref: "#/components/schemas/SequenceMode"
+        seed:
+          type: ["integer", "null"]
+          minimum: 0
+          maximum: 2147483647
+        callbackUrl:
+          type: ["string", "null"]
+          format: uri
+        filename:
+          type: ["string", "null"]
+          maxLength: 120
+      required: [sourceId, duration, photoDuration, format, fps, quality, sequence]
+    RenderAccepted:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [queued, rendering, completed, failed, cancelled]
+        seed:
+          type: integer
+      required: [jobId, status, seed]
+    RenderOutput:
+      type: object
+      properties:
+        url:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+        width:
+          type: integer
+        height:
+          type: integer
+        fps:
+          type: integer
+        duration:
+          type: number
+        frameCount:
+          type: integer
+        codec:
+          type: string
+        hasAudio:
+          type: boolean
+      required: [url, filename, mimeType, size, width, height, fps, duration, frameCount, codec, hasAudio]
+    RenderJob:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [queued, rendering, completed, failed, cancelled]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        stage:
+          type: string
+        seed:
+          type: integer
+        elapsedSeconds:
+          type: number
+        estimatedRemainingSeconds:
+          type: ["number", "null"]
+        output:
+          anyOf:
+            - $ref: "#/components/schemas/RenderOutput"
+            - type: "null"
+        error:
+          anyOf:
+            - $ref: "#/components/schemas/RenderError"
+            - type: "null"
+      required: [jobId, status, progress, stage, seed, elapsedSeconds, estimatedRemainingSeconds, output, error]
+    RenderError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      required: [code, message]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+      required: [error]
 

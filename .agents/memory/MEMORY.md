@@ -1,0 +1,1 @@
+- [FFmpeg image concat timing](ffmpeg-image-concat.md) — normalize mixed-dimension stills before concat manifests to preserve exact output duration and frame count.
