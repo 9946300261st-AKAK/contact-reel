@@ -1,15 +1,18 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
 # compiled output
-dist
-tmp
-out-tsc
+dist/
+build/
+out-tsc/
 *.tsbuildinfo
+tmp/
+temp/
+.tmp/
 .expo
 .expo-shared
 
 # dependencies
-node_modules
+node_modules/
 
 # IDEs and editors
 /.idea
@@ -30,7 +33,7 @@ node_modules
 # misc
 /.sass-cache
 /connect.lock
-/coverage
+/coverage/
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
@@ -44,6 +47,17 @@ Thumbs.db
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
-# Replit
+# secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# generated media, logs, caches, and user uploads
+*.log
+*.mp4
+*.mov
+*.webm
+attached_assets/
+.conversation/
 .cache/
 .local/

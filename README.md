@@ -21,21 +21,24 @@ React editor
 ## Run locally
 
 ```bash
+corepack enable
 pnpm install
-pnpm --filter @workspace/api-server run dev
 ```
 
-The web workflow is:
+Run the API and web editor in separate terminals:
 
 ```bash
-pnpm --filter @workspace/contactreel run dev
+pnpm run dev:api
+pnpm run dev:web
 ```
 
-The managed Replit workflows provide `PORT` and `BASE_PATH`. For a manual shell run, provide those environment variables yourself.
+The API defaults to `http://localhost:8080`; the Vite editor defaults to `http://localhost:5173`. Set `PORT` or `BASE_PATH` when hosting them elsewhere. The project enforces pnpm so a clone cannot accidentally create a second lockfile with npm or Yarn.
 
 ## Environment
 
 Copy `.env.example` to your local environment or add the values as Replit environment variables. `SUPABASE_SERVICE_ROLE_KEY` is server-only and must never be exposed to the browser.
+
+`DATABASE_URL` is only needed when using the optional Drizzle/Postgres connection and the portable migration tooling. The current one-worker mode does not require a database.
 
 ### Supabase setup
 
@@ -110,9 +113,22 @@ Webhook payloads mirror the job response. When `WEBHOOK_SECRET` is set, validate
 
 The export engine does not use `requestAnimationFrame`, `canvas.captureStream`, or `MediaRecorder`.
 
+## Portable deployment
+
+The repository does not require the current builder to develop or deploy ContactReel. Use `ARCHITECTURE.md` for system boundaries, `CONTRIBUTING.md` for development conventions, and `MIGRATION.md` for a clean-environment migration checklist.
+
+```bash
+pnpm install
+pnpm run build:web
+pnpm run build:api
+pnpm start
+```
+
+Serve `artifacts/contactreel/dist/public` as the static frontend and proxy `/api` to the API process. Install FFmpeg and FFprobe on the host and provide the server variables in `.env`.
+
 ## Replit deployment
 
-The project is a pnpm workspace with a managed API workflow and the ContactReel web artifact. Publish the project after setting the environment variables above. FFmpeg and FFprobe are detected at runtime; the health endpoint reports whether they are available.
+The project also includes Replit workflow/artifact configuration for convenient Replit deployment. Publish after setting the environment variables above. FFmpeg and FFprobe are detected at runtime; the health endpoint reports whether they are available.
 
 The API currently uses an in-process single-worker queue, which avoids requiring Redis during the first deployment. For multiple API replicas, move `render-service.ts` queue state into a shared queue and store job metadata in PostgreSQL or Supabase before scaling horizontally.
 
