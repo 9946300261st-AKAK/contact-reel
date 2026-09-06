@@ -5,6 +5,10 @@ import path from "node:path";
 import { promisify } from "node:util";
 import type { Source, SourceInput } from "@workspace/api-zod";
 import { logger } from "./logger";
+import {
+  isSupabaseConfigured as managedSupabaseConfigured,
+  supabaseRequest,
+} from "./supabase-connector";
 
 const execFileAsync = promisify(execFile);
 const sourceRoot = path.join(tmpdir(), "contactreel-sources");
@@ -139,27 +143,20 @@ export function getLocalImage(sourceId: string, imageId: string) {
   return source.images.find((image) => image.id === imageId);
 }
 
-function supabaseConfig() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const bucket = process.env.SUPABASE_IMAGE_BUCKET || "reel-images";
-  return url && key ? { url: url.replace(/\/$/, ""), key, bucket } : undefined;
-}
-
 async function resolveSupabaseImages(sourceId: string, workspace: string) {
-  const config = supabaseConfig();
-  if (!config) return undefined;
+  if (!managedSupabaseConfigured()) return undefined;
+  const bucket = process.env.SUPABASE_IMAGE_BUCKET || "reel-images";
   if (!safeId(sourceId)) throw new Error("Invalid sourceId.");
-  const listResponse = await fetch(
-    `${config.url}/storage/v1/object/list/${encodeURIComponent(config.bucket)}`,
+  const listResponse = await supabaseRequest(
+    `/storage/v1/object/list/${encodeURIComponent(bucket)}`,
     {
       method: "POST",
-      headers: {
-        apikey: config.key,
-        Authorization: `Bearer ${config.key}`,
-        "Content-Type": "application/json",
+      headers: { "Content-Type": "application/json" },
+      body: {
+        prefix: `${sourceId}/`,
+        limit: 100,
+        sortBy: { column: "name", order: "asc" },
       },
-      body: JSON.stringify({ prefix: `${sourceId}/`, limit: 100, sortBy: { column: "name", order: "asc" } }),
     },
   );
   if (!listResponse.ok) {
@@ -173,12 +170,11 @@ async function resolveSupabaseImages(sourceId: string, workspace: string) {
   for (const [index, item] of imageFiles.entries()) {
     const relativePath = item.name || "";
     const remotePath = `${sourceId}/${relativePath}`;
-    const response = await fetch(
-      `${config.url}/storage/v1/object/${encodeURIComponent(config.bucket)}/${remotePath
+    const response = await supabaseRequest(
+      `/storage/v1/object/${encodeURIComponent(bucket)}/${remotePath
         .split("/")
         .map(encodeURIComponent)
         .join("/")}`,
-      { headers: { apikey: config.key, Authorization: `Bearer ${config.key}` } },
     );
     if (!response.ok) throw new Error(`Supabase image download failed (${response.status}).`);
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -214,5 +210,5 @@ export async function readStoredImage(image: StoredImage) {
 }
 
 export function isSupabaseConfigured() {
-  return Boolean(supabaseConfig());
+  return managedSupabaseConfigured();
 }

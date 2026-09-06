@@ -12,6 +12,7 @@ import {
 } from "@workspace/contactreel-core";
 import { logger } from "./logger";
 import { resolveSourceImages } from "./source-store";
+import { isSupabaseConfigured, supabaseRequest } from "./supabase-connector";
 
 const execFileAsync = promisify(execFile);
 const renderRoot = path.join(tmpdir(), "contactreel-renders");
@@ -155,24 +156,20 @@ async function normalizeImage(
 }
 
 async function uploadToSupabase(job: JobRecord, outputPath: string, filename: string) {
-  const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const bucket = process.env.SUPABASE_RENDER_BUCKET || "reel-renders";
-  if (!url || !key) return undefined;
+  if (!isSupabaseConfigured()) return undefined;
   const year = new Date().getUTCFullYear();
   const month = String(new Date().getUTCMonth() + 1).padStart(2, "0");
   const remotePath = `${year}/${month}/${filename}`;
   const body = await readFile(outputPath);
-  const response = await fetch(
-    `${url}/storage/v1/object/${encodeURIComponent(bucket)}/${remotePath
+  const response = await supabaseRequest(
+    `/storage/v1/object/${encodeURIComponent(bucket)}/${remotePath
       .split("/")
       .map(encodeURIComponent)
       .join("/")}`,
     {
       method: "POST",
       headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
         "Content-Type": "video/mp4",
         "x-upsert": "true",
       },
@@ -180,21 +177,21 @@ async function uploadToSupabase(job: JobRecord, outputPath: string, filename: st
     },
   );
   if (!response.ok) throw new Error(`Supabase output upload failed (${response.status}).`);
-  const signed = await fetch(`${url}/storage/v1/object/sign/${encodeURIComponent(bucket)}/${remotePath}`, {
-    method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
+  const signed = await supabaseRequest(
+    `/storage/v1/object/sign/${encodeURIComponent(bucket)}/${remotePath
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: { expiresIn: 60 * 60 * 24 },
     },
-    body: JSON.stringify({ expiresIn: 60 * 60 * 24 }),
-  });
+  );
   if (!signed.ok) throw new Error(`Supabase signed URL creation failed (${signed.status}).`);
   const signedPayload = (await signed.json()) as { signedURL?: string };
   if (!signedPayload.signedURL) throw new Error("Supabase did not return a signed URL.");
-  return signedPayload.signedURL.startsWith("http")
-    ? signedPayload.signedURL
-    : `${url}/storage/v1${signedPayload.signedURL}`;
+  return true;
 }
 
 async function sendCallback(job: JobRecord) {
@@ -329,8 +326,7 @@ async function runJob(job: JobRecord) {
     output.url = outputUrl(job.id);
     job.stage = "Uploading";
     job.progress = 94;
-    const uploadedUrl = await uploadToSupabase(job, outputPath, outputFilename);
-    if (uploadedUrl) output.url = uploadedUrl;
+    await uploadToSupabase(job, outputPath, outputFilename);
     job.stage = "Ready";
     job.progress = 100;
     job.status = "completed";

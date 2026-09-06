@@ -36,17 +36,17 @@ The API defaults to `http://localhost:8080`; the Vite editor defaults to `http:/
 
 ## Environment
 
-Copy `.env.example` to your local environment or add the values as Replit environment variables. `SUPABASE_SERVICE_ROLE_KEY` is server-only and must never be exposed to the browser.
+Copy `.env.example` to your local environment or add the values as environment variables. In Replit, attach the managed Supabase connector to the API environment and configure it with a `service_role` key. The API uses the connector proxy automatically, so `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are only needed for independent non-Replit clones. Service-role credentials are server-only and must never be exposed to the browser.
 
 `DATABASE_URL` is only needed when using the optional Drizzle/Postgres connection and the portable migration tooling. The current one-worker mode does not require a database.
 
 ### Supabase setup
 
-1. Create a Supabase project.
-2. Create private Storage buckets named `reel-images` and `reel-renders` (or set the bucket variables).
-3. Arrange source images under `sourceId/filename.ext` in the image bucket.
-4. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on the API server only.
-5. The worker lists and downloads supported JPEG, PNG, and WebP files server-side. Completed MP4s are uploaded to the render bucket and returned with a signed URL.
+1. Create or connect a Supabase project through the Replit Supabase integration.
+2. Use a `service_role` key for the attached connection. An anon key cannot list private Storage objects or create buckets.
+3. Create private Storage buckets named `reel-images` and `reel-renders` (or apply `supabase/migrations/0001_contactreel.sql` with an administrator connection).
+4. Arrange source images under `sourceId/filename.ext` in the image bucket.
+5. The worker lists and downloads supported JPEG, PNG, and WebP files server-side. Completed MP4s are uploaded to the render bucket. The API keeps its local download route as the immediate result URL and also archives the file in the render bucket.
 
 The local editor source endpoint is useful for manual projects without Supabase. It preserves original bytes in temporary storage until the source is used; it does not create a permanently public bucket.
 
