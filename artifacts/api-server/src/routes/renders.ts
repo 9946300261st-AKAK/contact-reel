@@ -6,6 +6,7 @@ import {
 } from "@workspace/api-zod";
 import {
   cancelRenderJob,
+  cancelAllRenderJobs,
   createRenderJob,
   getRenderFile,
   getRenderJob,
@@ -88,6 +89,10 @@ router.post("/v1/render/:jobId/cancel", renderRateLimit, requireRenderAuth, (req
     return;
   }
   res.json(renderJobResponse(job));
+});
+
+router.post("/v1/render/cancel-all", renderRateLimit, requireRenderAuth, (_req, res) => {
+  res.json(cancelAllRenderJobs());
 });
 
 router.get("/v1/render/:jobId/download", async (req, res) => {

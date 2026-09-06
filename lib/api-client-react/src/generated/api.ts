@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CancelAllRenders200,
   ErrorResponse,
   HealthStatus,
   RenderAccepted,
@@ -586,6 +587,78 @@ export function useGetRender<TData = Awaited<ReturnType<typeof getRender>>, TErr
 
 
 
+
+export const getCancelAllRendersUrl = () => {
+
+
+
+
+  return `/api/v1/render/cancel-all`
+}
+
+/**
+ * Cancels queued and active jobs without deleting completed or failed render history.
+ * @summary Cancel all queued and active renders
+ */
+export const cancelAllRenders = async ( options?: Parameters<typeof customFetch>[1]): Promise<CancelAllRenders200> => {
+
+  return customFetch<CancelAllRenders200>(getCancelAllRendersUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelAllRendersMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelAllRenders>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelAllRenders>>, TError,void, TContext> => {
+
+const mutationKey = ['cancelAllRenders'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelAllRenders>>, void> = () => {
+
+
+          return  cancelAllRenders(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelAllRendersMutationResult = NonNullable<Awaited<ReturnType<typeof cancelAllRenders>>>
+
+    export type CancelAllRendersMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Cancel all queued and active renders
+ */
+export const useCancelAllRenders = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelAllRenders>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelAllRenders>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCancelAllRendersMutationOptions(options));
+    }
 
 export const getCancelRenderUrl = (jobId: string,) => {
 

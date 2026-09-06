@@ -211,6 +211,18 @@ export const GetRenderResponse = zod.object({
 
 
 /**
+ * Cancels queued and active jobs without deleting completed or failed render history.
+ * @summary Cancel all queued and active renders
+ */
+export const CancelAllRendersResponse = zod.object({
+  "cancelledJobIds": zod.array(zod.string()),
+  "cancelledCount": zod.int(),
+  "activeJobId": zod.string().nullable(),
+  "queueDepth": zod.int()
+})
+
+
+/**
  * @summary Cancel an active render
  */
 export const cancelRenderPathJobIdMax = 128;

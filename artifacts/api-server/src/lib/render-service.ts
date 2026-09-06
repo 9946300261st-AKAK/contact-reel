@@ -415,6 +415,26 @@ export function cancelRenderJob(jobId: string) {
   return job;
 }
 
+export function cancelAllRenderJobs() {
+  const cancelledJobIds: string[] = [];
+  for (const job of jobs.values()) {
+    if (job.status === "queued" || job.status === "rendering") {
+      cancelRenderJob(job.id);
+      cancelledJobIds.push(job.id);
+    }
+  }
+  for (let index = queue.length - 1; index >= 0; index -= 1) {
+    const queuedJob = jobs.get(queue[index]);
+    if (!queuedJob || queuedJob.status === "cancelled") queue.splice(index, 1);
+  }
+  return {
+    cancelledJobIds,
+    cancelledCount: cancelledJobIds.length,
+    activeJobId: activeJobId || null,
+    queueDepth: queue.length,
+  };
+}
+
 export function renderJobResponse(job: JobRecord) {
   return toResponse(job);
 }

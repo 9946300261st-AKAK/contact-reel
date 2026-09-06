@@ -24,27 +24,25 @@ export async function supabaseRequest(
     headers?: Record<string, string>;
   } = {},
 ) {
-  if (managedConnectorAvailable()) {
-    return connectors.proxy("supabase", path, options);
-  }
-
   const config = legacyConfig();
-  if (!config) {
-    throw new Error("Supabase is not configured.");
+  if (config) {
+    return fetch(`${config.url}${path}`, {
+      method: options.method || "GET",
+      headers: {
+        apikey: config.key,
+        Authorization: `Bearer ${config.key}`,
+        ...(options.headers || {}),
+      },
+      body:
+        options.body === undefined || options.body === null
+          ? undefined
+          : typeof options.body === "string" || options.body instanceof Buffer
+            ? options.body
+            : JSON.stringify(options.body),
+    });
   }
 
-  return fetch(`${config.url}${path}`, {
-    method: options.method || "GET",
-    headers: {
-      apikey: config.key,
-      Authorization: `Bearer ${config.key}`,
-      ...(options.headers || {}),
-    },
-    body:
-      options.body === undefined || options.body === null
-        ? undefined
-        : typeof options.body === "string" || options.body instanceof Buffer
-          ? options.body
-          : JSON.stringify(options.body),
-  });
+  if (managedConnectorAvailable()) return connectors.proxy("supabase", path, options);
+
+  throw new Error("Supabase is not configured.");
 }

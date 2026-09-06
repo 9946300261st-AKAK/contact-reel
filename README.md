@@ -63,6 +63,7 @@ GET  /api/v1/sources/:sourceId
 POST /api/v1/render
 GET  /api/v1/render/:jobId
 POST /api/v1/render/:jobId/cancel
+POST /api/v1/render/cancel-all
 GET  /api/v1/render/:jobId/download
 ```
 
@@ -83,6 +84,15 @@ GET  /api/v1/render/:jobId/download
 ```
 
 Use `Authorization: Bearer <API_KEY_SECRET>` when `API_KEY_SECRET` is configured. Add `Idempotency-Key: unique-job-key` to make n8n retries reuse the same render job.
+
+To stop every queued or currently rendering job, call the protected cancellation endpoint:
+
+```bash
+curl -X POST "https://your-contactreel-domain/api/v1/render/cancel-all" \
+  -H "Authorization: Bearer $CONTACTREEL_API_KEY"
+```
+
+This cancels active/queued work but preserves completed and failed job history.
 
 ## n8n flow
 

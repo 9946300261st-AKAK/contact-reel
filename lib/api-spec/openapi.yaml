@@ -157,6 +157,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /v1/render/cancel-all:
+    post:
+      operationId: cancelAllRenders
+      tags: [renders]
+      summary: Cancel all queued and active renders
+      description: Cancels queued and active jobs without deleting completed or failed render history.
+      responses:
+        "200":
+          description: Cancellation summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cancelledJobIds:
+                    type: array
+                    items:
+                      type: string
+                  cancelledCount:
+                    type: integer
+                  activeJobId:
+                    type: ["string", "null"]
+                  queueDepth:
+                    type: integer
+                required: [cancelledJobIds, cancelledCount, activeJobId, queueDepth]
+        "401":
+          description: API authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/render/{jobId}/cancel:
     post:
       operationId: cancelRender

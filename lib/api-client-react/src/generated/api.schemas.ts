@@ -215,3 +215,11 @@ export interface ErrorResponse {
 
 export type IdempotencyKeyParameter = string;
 
+export type CancelAllRenders200 = {
+  cancelledJobIds: string[];
+  cancelledCount: number;
+  /** @nullable */
+  activeJobId: string | null;
+  queueDepth: number;
+};
+
